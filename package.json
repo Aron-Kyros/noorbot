@@ -1,0 +1,19 @@
+{
+  "name": "noorbot",
+  "version": "1.0.0",
+  "description": "Islamic WhatsApp Bot — Quran, Hadith, Tafsir & AI Q&A",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.9",
+    "@replit/database": "^2.0.1",
+    "axios": "^1.7.2",
+    "groq-sdk": "^0.3.3",
+    "express": "^4.19.2",
+    "pino": "^9.3.1",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
