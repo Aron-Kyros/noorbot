@@ -1,6 +1,7 @@
 // src/index.js — NoorBot Islamic WhatsApp Bot
-// Hosting: Replit + GitHub | Keep-alive: UptimeRobot | Session: Replit DB
+// Hosting: Railway | Keep-alive: UptimeRobot | Session: disk (Railway Volume)
 
+import 'dotenv/config';
 import {
   makeWASocket,
   useMultiFileAuthState,
@@ -9,13 +10,16 @@ import {
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import pino from 'pino';
-import { restoreSession, saveSession, clearSession } from './session.js';
+
+import { restoreSession, clearSession } from './session.js';
 import { startServer } from './server.js';
 import { handleCommand } from './handlers/commands.js';
 
 const logger = pino({ level: 'silent' });
 const PREFIX = process.env.BOT_PREFIX ?? '!';
-const BOT_NUMBER = process.env.BOT_NUMBER ?? '2349061723673';
+const BOT_NUMBER = '2349061723673'; // ← Change this to your WhatsApp number
+
+
 
 // ─── Cooldown (anti-spam) ─────────────────────────────────────────────────────
 const cooldowns = new Map();
@@ -39,7 +43,7 @@ const WELCOME_MESSAGES = [
 async function connectToWhatsApp() {
   await restoreSession();
 
-  const { state, saveCreds } = await useMultiFileAuthState('./auth_info');
+  const { state, saveCreds } = await useMultiFileAuthState(process.env.AUTH_DIR || './auth_info');
   const { version } = await fetchLatestBaileysVersion();
 
   const sock = makeWASocket({
@@ -53,10 +57,9 @@ async function connectToWhatsApp() {
 
   // ─── Pair code (runs once if not registered) ─────────────────────────────────
   if (!state.creds.registered) {
-    const number = BOT_NUMBER.replace(/[^0-9]/g, '');
     setTimeout(async () => {
       try {
-        const code = await sock.requestPairingCode(number);
+        const code = await sock.requestPairingCode(BOT_NUMBER);
         console.log('\n┌─────────────────────────────┐');
         console.log(`│  🔑 Pairing Code: ${code}  │`);
         console.log('└─────────────────────────────┘');
@@ -67,10 +70,9 @@ async function connectToWhatsApp() {
     }, 3000);
   }
 
-  // ─── Save creds to Replit DB on every update ─────────────────────────────────
+  // ─── Persist creds to disk (Railway Volume) on every update ─────────────────
   sock.ev.on('creds.update', async () => {
     await saveCreds();
-    await saveSession();
   });
 
   // ─── Connection events ───────────────────────────────────────────────────────
@@ -78,7 +80,6 @@ async function connectToWhatsApp() {
     if (connection === 'open') {
       console.log('✅ NoorBot connected to WhatsApp!');
       console.log(`📌 Prefix: ${PREFIX} | Type ${PREFIX}help in any chat\n`);
-      await saveSession();
     }
 
     if (connection === 'close') {
@@ -149,10 +150,19 @@ async function connectToWhatsApp() {
       try {
         const response = await handleCommand(text, senderJid);
         if (response) {
-          await sock.sendMessage(jid, {
-            text: response,
-            ...(msg.key.participant ? { quoted: msg } : {})
-          });
+          const quoted = msg.key.participant ? { quoted: msg } : {};
+          if (response.type === 'image' && response.image) {
+            await sock.sendMessage(jid, {
+              image: response.image,
+              caption: response.caption,
+              ...quoted
+            });
+          } else {
+            await sock.sendMessage(jid, {
+              text: typeof response === 'string' ? response : response.caption,
+              ...quoted
+            });
+          }
         }
       } catch (err) {
         console.error('Handler error:', err.message);
