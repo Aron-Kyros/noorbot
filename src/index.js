@@ -17,7 +17,7 @@ import { handleCommand } from './handlers/commands.js';
 
 const logger = pino({ level: 'silent' });
 const PREFIX = process.env.BOT_PREFIX ?? '!';
-const BOT_NUMBER = '2349061723673'; // ← Change this to your WhatsApp number
+const BOT_NUMBER = '2349021096681'; // ← Change this to your WhatsApp number
 
 
 
