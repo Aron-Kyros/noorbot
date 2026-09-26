@@ -62,7 +62,7 @@ export async function askIslamic(userJid, question) {
   if (history.length > 12) history.splice(0, history.length - 12);
 
   const response = await groq.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+    model: 'openai/gpt-oss-120b',
     messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...history],
     max_tokens: 600,
     temperature: 0.35
@@ -75,7 +75,7 @@ export async function askIslamic(userJid, question) {
 
 export async function explainHadith(hadithText) {
   const response = await groq.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+    model: 'openai/gpt-oss-120b',
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: `Briefly explain this hadith, its context, and key lessons (max 200 words):\n\n"${hadithText}"` }
