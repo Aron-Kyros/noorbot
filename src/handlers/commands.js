@@ -1,14 +1,22 @@
 // src/handlers/commands.js
 
 import { getAyah, searchQuran, getTafsir, randomVerse } from '../services/quran.js';
-import { getHadith, searchHadiths, getNawawiHadith } from '../services/hadith.js';
+import { getHadith, getNawawiHadith } from '../services/hadith.js';
 import { askIslamic, clearHistory, explainHadith } from '../services/ai.js';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import path from 'path';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ICON_PATH = path.join(__dirname, '../../assets/noorbot.png');
 const P = process.env.BOT_PREFIX ?? '!';
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
-function fmtAyah({ key, arabic, translation }) {
-  return `📖 *Quran ${key}*\n\n${arabic}\n\n_${translation}_\n\n— Saheeh International`;
+function fmtAyah({ key, arabic, transliteration, translation }) {
+  const lines = [`📖 *Quran ${key}*`, ``, arabic];
+  if (transliteration) lines.push(``, transliteration);
+  lines.push(``, `_${translation}_`, ``, `— Saheeh International`);
+  return lines.join('\n');
 }
 
 function fmtNawawi(h) {
@@ -20,13 +28,13 @@ export const COMMANDS = {
 
   help: {
     async run() {
-      return [
+      const text = [
         `🌙 *NoorBot — Islamic Assistant*`,
         `_بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ_`,
-        `━━━━━━━━━━━━━━━━━━━━━━`,
+        `━━━━━━━━━━━━━━`,
         ``,
         `📖 *Q U R A N*`,
-        `┌─────────────────────`,
+        `┌────────────`,
         `│ ${P}quran [surah]:[ayah]`,
         `│ _e.g. ${P}quran 2:255 (Ayatul Kursi)_`,
         `│`,
@@ -38,10 +46,10 @@ export const COMMANDS = {
         `│`,
         `│ ${P}verse`,
         `│ _Random verse of the day_`,
-        `└─────────────────────`,
+        `└────────────`,
         ``,
         `📚 *H A D I T H*`,
-        `┌─────────────────────`,
+        `┌────────────`,
         `│ ${P}nawawi [1-42]`,
         `│ _40 Hadith An-Nawawi + AI explanation_`,
         `│`,
@@ -49,10 +57,10 @@ export const COMMANDS = {
         `│ _e.g. ${P}hadith bukhari 1 1_`,
         `│ _bukhari • muslim • abudawud_`,
         `│ _tirmidhi • nasai • ibnmajah_`,
-        `└─────────────────────`,
+        `└────────────`,
         ``,
         `🤖 *I S L A M I C  A I*`,
-        `┌─────────────────────`,
+        `┌────────────`,
         `│ ${P}ask [your question]`,
         `│ _Ask anything — fiqh, aqeedah,_`,
         `│ _seerah, tafsir, and more_`,
@@ -60,22 +68,27 @@ export const COMMANDS = {
         `│`,
         `│ ${P}clear`,
         `│ _Reset conversation history_`,
-        `└─────────────────────`,
+        `└────────────`,
         ``,
         `📿 *D A I L Y*`,
-        `┌─────────────────────`,
+        `┌────────────`,
         `│ ${P}dua [occasion]`,
         `│ _morning • evening • eating_`,
         `│ _sleeping • travel • anxiety_`,
         `│`,
         `│ ${P}names`,
         `│ _Random Name of Allah_`,
-        `└─────────────────────`,
+        `└────────────`,
         ``,
-        `━━━━━━━━━━━━━━━━━━━━━━`,
+        `━━━━━━━━━━━━━━`,
         `_والله أعلم — NoorBot always cites_`,
         `_its sources. Use knowledge wisely._`
       ].join('\n');
+
+      let image = null;
+      try { image = readFileSync(ICON_PATH); } catch (_) {}
+
+      return { type: 'image', image, caption: text };
     }
   },
 
@@ -146,21 +159,6 @@ export const COMMANDS = {
       parts.push(`_${h.english}_`);
       if (h.grade) parts.push(`\n📌 *Grade:* ${h.grade}`);
       return parts.join('\n');
-    }
-  },
-
-  hsearch: {
-    async run(args) {
-      if (!args.length) return `❌ Usage: ${P}hsearch [keyword]`;
-      const q = args.join(' ');
-      const results = await searchHadiths(q);
-      if (!results.length) return `🔍 No hadiths found for "${q}".`;
-      const lines = [`🔍 *Hadith Search: "${q}"*\n`];
-      for (const r of results.slice(0, 3)) {
-        const en = r.hadith?.find(x => x.lang === 'en');
-        if (en) lines.push(`📌 ${en.body.slice(0, 160)}…\n`);
-      }
-      return lines.join('\n');
     }
   },
 
@@ -281,9 +279,8 @@ export async function handleCommand(text, senderJid) {
     return await COMMANDS[cmd].run(args, senderJid);
   } catch (err) {
     console.error(`[${cmd}] Error:`, err.message);
-    // Give a helpful error for common failures
     if (err.message.includes('SUNNAH_API_KEY')) {
-      return `⚠️ Sunnah.com API key not configured.\nAsk the admin to add SUNNAH_API_KEY to Replit Secrets.`;
+      return `⚠️ Sunnah.com API key not configured yet. Coming soon!`;
     }
     return `⚠️ Error: ${err.message}`;
   }
